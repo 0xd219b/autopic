@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>九宫格切图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
+
+  .toolbar {
+    display: flex; align-items: center; gap: 16px; padding: 12px 20px;
+    background: #16213e; border-bottom: 1px solid #0f3460; flex-wrap: wrap;
+  }
+  .toolbar label { font-size: 13px; color: #a0a0c0; }
+  .toolbar button {
+    padding: 6px 16px; border: none; border-radius: 4px; font-size: 13px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary { background: #533483; color: white; }
+  .btn-primary:hover { background: #6a42a0; }
+  .btn-success { background: #1a936f; color: white; }
+  .btn-success:hover { background: #22b384; }
+  .btn-warning { background: #c84b31; color: white; }
+  .btn-warning:hover { background: #e05a3e; }
+  .btn-info { background: #0f3460; color: #a0d2db; border: 1px solid #533483; }
+  .btn-info:hover { background: #1a4a80; }
+  .btn-info.active { background: #533483; color: white; }
+  .sep { color: #533483; font-weight: bold; }
+  .info-text { font-size: 12px; color: #888; }
+
+  .main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow: auto; }
+
+  .upload-area {
+    border: 2px dashed #533483; border-radius: 8px; padding: 60px 40px;
+    text-align: center; cursor: pointer; transition: border-color 0.2s;
+  }
+  .upload-area:hover { border-color: #a0d2db; }
+  .upload-area .icon { font-size: 48px; color: #533483; }
+  .upload-area p { color: #a0a0c0; margin-top: 8px; font-size: 14px; }
+
+  .workspace { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+
+  .source-section, .result-section { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .section-title { font-size: 14px; font-weight: 600; color: #a0d2db; }
+
+  .source-wrap {
+    position: relative; border: 2px solid #533483; border-radius: 4px;
+    background: repeating-conic-gradient(#2a2a4a 0% 25%, #1a1a2e 0% 50%) 50% / 16px 16px;
+    overflow: hidden; cursor: crosshair;
+  }
+  .source-wrap canvas { display: block; }
+  /* 裁切框 */
+  .crop-overlay {
+    position: absolute; border: 2px dashed #e94560; pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+  }
+
+  .grid-preview {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
+    background: #533483; border: 2px solid #533483; border-radius: 4px;
+  }
+  .grid-preview canvas {
+    display: block; image-rendering: pixelated; cursor: pointer;
+    transition: outline 0.15s;
+  }
+  .grid-preview canvas:hover { outline: 2px solid #a0d2db; outline-offset: -2px; }
+
+  .order-hint {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-top: 4px;
+  }
+  .order-hint span {
+    font-size: 11px; color: #a0a0c0; text-align: center; width: 40px;
+  }
+
+  #fileInput { display: none; }
+
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #533483; color: white; padding: 10px 24px; border-radius: 6px;
+    font-size: 14px; z-index: 999; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  .size-options { display: flex; gap: 8px; align-items: center; }
+  .size-options button.active { background: #533483; color: white; }
+
+  .crop-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .crop-controls input[type="number"] {
+    width: 60px; padding: 4px 6px; background: #0f3460; border: 1px solid #533483;
+    color: #e0e0e0; border-radius: 4px; font-size: 12px;
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="btn-primary" onclick="document.getElementById('fileInput').click()">上传图片</button>
+  <input type="file" id="fileInput" accept="image/*">
+  <span class="sep">|</span>
+  <label>输出尺寸:</label>
+  <div class="size-options" id="sizeOptions">
+    <button class="btn-info" onclick="setOutputSize(1080)" data-size="1080">1080</button>
+    <button class="btn-info" onclick="setOutputSize(1024)" data-size="1024">1024</button>
+    <button class="btn-info active" onclick="setOutputSize(0)" data-size="0">自动</button>
+  </div>
+  <span class="sep">|</span>
+  <button class="btn-success" onclick="exportAll()">全部导出</button>
+  <button class="btn-info" onclick="exportZip()">打包下载</button>
+  <span class="sep">|</span>
+  <span class="info-text" id="infoText">上传一张图片开始切图</span>
+  <span style="flex:1;"></span>
+  <a href="index.html" class="btn-info" style="text-decoration:none; display:inline-block;">图片调整工具</a>
+</div>
+
+<div class="main" id="mainArea">
+  <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">&#x1F5BC;</div>
+    <p>点击或拖拽上传图片</p>
+    <p style="font-size:12px; margin-top:4px;">支持 PNG / JPG / WebP</p>
+    <p style="font-size:12px; margin-top:4px; color:#a0d2db;">图片将被裁切为 1:1 正方形后切分为九宫格</p>
+  </div>
+
+  <div class="workspace" id="workspace" style="display:none;">
+    <div class="source-section">
+      <div class="section-title">原图（拖拽调整裁切区域）</div>
+      <div class="crop-controls">
+        <label style="font-size:12px; color:#a0a0c0;">裁切偏移 X:</label>
+        <input type="number" id="cropX" value="0" step="1" onchange="updateCropFromInput()">
+        <label style="font-size:12px; color:#a0a0c0;">Y:</label>
+        <input type="number" id="cropY" value="0" step="1" onchange="updateCropFromInput()">
+        <button class="btn-info" onclick="centerCrop()">居中</button>
+      </div>
+      <div class="source-wrap" id="sourceWrap">
+        <canvas id="sourceCanvas"></canvas>
+        <div class="crop-overlay" id="cropOverlay"></div>
+      </div>
+    </div>
+
+    <div class="result-section">
+      <div class="section-title">九宫格预览（点击单独下载）</div>
+      <div class="grid-preview" id="gridPreview"></div>
+      <div class="order-hint">
+        <span>1</span><span>2</span><span>3</span>
+        <span>4</span><span>5</span><span>6</span>
+        <span>7</span><span>8</span><span>9</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MAX_DISPLAY = 500; // 预览最大显示尺寸
+
+let state = {
+  img: null,
+  imgW: 0,
+  imgH: 0,
+  cropX: 0,
+  cropY: 0,
+  cropSize: 0,      // 正方形裁切边长（原图像素）
+  outputSize: 0,     // 0 = 自动（使用 cropSize）
+  displayScale: 1,   // 显示缩放比
+  dragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  dragStartCropX: 0,
+  dragStartCropY: 0,
+};
+
+const fileInput = document.getElementById('fileInput');
+const sourceCanvas = document.getElementById('sourceCanvas');
+const sourceCtx = sourceCanvas.getContext('2d');
+const cropOverlay = document.getElementById('cropOverlay');
+const gridPreview = document.getElementById('gridPreview');
+const infoText = document.getElementById('infoText');
+
+// 上传
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) loadImage(e.target.files[0]);
+});
+
+const mainArea = document.getElementById('mainArea');
+mainArea.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+mainArea.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImage(file);
+});
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function setOutputSize(size) {
+  state.outputSize = size;
+  document.querySelectorAll('#sizeOptions button').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.size) === size);
+  });
+  updateGrid();
+}
+
+function loadImage(file) {
+  const img = new Image();
+  img.onload = () => {
+    state.img = img;
+    state.imgW = img.width;
+    state.imgH = img.height;
+
+    // 1:1 裁切 — 取短边
+    state.cropSize = Math.min(img.width, img.height);
+    // 居中
+    state.cropX = Math.floor((img.width - state.cropSize) / 2);
+    state.cropY = Math.floor((img.height - state.cropSize) / 2);
+
+    // 显示缩放
+    const maxDim = Math.max(img.width, img.height);
+    state.displayScale = maxDim > MAX_DISPLAY ? MAX_DISPLAY / maxDim : 1;
+
+    const dw = Math.round(img.width * state.displayScale);
+    const dh = Math.round(img.height * state.displayScale);
+    sourceCanvas.width = dw;
+    sourceCanvas.height = dh;
+    sourceCtx.drawImage(img, 0, 0, dw, dh);
+
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('workspace').style.display = 'flex';
+    infoText.textContent = `原图: ${img.width}×${img.height} → 裁切: ${state.cropSize}×${state.cropSize}`;
+
+    updateCropOverlay();
+    updateCropInputs();
+    updateGrid();
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function centerCrop() {
+  state.cropX = Math.floor((state.imgW - state.cropSize) / 2);
+  state.cropY = Math.floor((state.imgH - state.cropSize) / 2);
+  updateCropOverlay();
+  updateCropInputs();
+  updateGrid();
+}
+
+function updateCropFromInput() {
+  state.cropX = clamp(parseInt(document.getElementById('cropX').value) || 0, 0, state.imgW - state.cropSize);
+  state.cropY = clamp(parseInt(document.getElementById('cropY').value) || 0, 0, state.imgH - state.cropSize);
+  updateCropOverlay();
+  updateGrid();
+}
+
+function updateCropInputs() {
+  document.getElementById('cropX').value = state.cropX;
+  document.getElementById('cropY').value = state.cropY;
+}
+
+function updateCropOverlay() {
+  const s = state.displayScale;
+  cropOverlay.style.left = (state.cropX * s) + 'px';
+  cropOverlay.style.top = (state.cropY * s) + 'px';
+  cropOverlay.style.width = (state.cropSize * s) + 'px';
+  cropOverlay.style.height = (state.cropSize * s) + 'px';
+}
+
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+// 拖拽裁切框
+const sourceWrap = document.getElementById('sourceWrap');
+sourceWrap.addEventListener('mousedown', e => {
+  state.dragging = true;
+  state.dragStartX = e.clientX;
+  state.dragStartY = e.clientY;
+  state.dragStartCropX = state.cropX;
+  state.dragStartCropY = state.cropY;
+  sourceWrap.style.cursor = 'grabbing';
+});
+
+window.addEventListener('mousemove', e => {
+  if (!state.dragging) return;
+  const dx = (e.clientX - state.dragStartX) / state.displayScale;
+  const dy = (e.clientY - state.dragStartY) / state.displayScale;
+  state.cropX = clamp(Math.round(state.dragStartCropX + dx), 0, state.imgW - state.cropSize);
+  state.cropY = clamp(Math.round(state.dragStartCropY + dy), 0, state.imgH - state.cropSize);
+  updateCropOverlay();
+  updateCropInputs();
+  updateGrid();
+});
+
+window.addEventListener('mouseup', () => {
+  if (state.dragging) {
+    state.dragging = false;
+    sourceWrap.style.cursor = 'crosshair';
+  }
+});
+
+// 生成九宫格
+function updateGrid() {
+  if (!state.img) return;
+
+  const actualSize = state.outputSize > 0 ? state.outputSize : state.cropSize;
+  const cellSize = Math.floor(actualSize / 3);
+  const previewCellSize = Math.min(160, cellSize);
+
+  gridPreview.innerHTML = '';
+  gridPreview.style.gridTemplateColumns = `repeat(3, ${previewCellSize}px)`;
+
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = cellSize;
+      canvas.height = cellSize;
+      const ctx = canvas.getContext('2d');
+
+      // 从原图裁切区域中提取对应的 1/3 块
+      const sx = state.cropX + (state.cropSize / 3) * c;
+      const sy = state.cropY + (state.cropSize / 3) * r;
+      const sw = state.cropSize / 3;
+      const sh = state.cropSize / 3;
+      ctx.drawImage(state.img, sx, sy, sw, sh, 0, 0, cellSize, cellSize);
+
+      canvas.style.width = previewCellSize + 'px';
+      canvas.style.height = previewCellSize + 'px';
+      canvas.title = `点击下载第 ${r * 3 + c + 1} 块`;
+      canvas.dataset.index = r * 3 + c;
+      canvas.addEventListener('click', () => downloadCell(canvas, parseInt(canvas.dataset.index)));
+      gridPreview.appendChild(canvas);
+    }
+  }
+}
+
+// 下载单个格子
+function downloadCell(canvas, idx) {
+  const link = document.createElement('a');
+  link.download = `grid_${idx + 1}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast(`已下载第 ${idx + 1} 块`);
+}
+
+// 全部导出（逐个下载）
+function exportAll() {
+  const cells = gridPreview.querySelectorAll('canvas');
+  if (cells.length === 0) { showToast('请先上传图片'); return; }
+  cells.forEach((canvas, i) => {
+    setTimeout(() => {
+      const link = document.createElement('a');
+      link.download = `grid_${i + 1}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }, i * 200);
+  });
+  showToast('正在导出 9 张图片...');
+}
+
+// 打包下载（用 canvas 拼回完整图 + 逐个下载）
+async function exportZip() {
+  const cells = gridPreview.querySelectorAll('canvas');
+  if (cells.length === 0) { showToast('请先上传图片'); return; }
+
+  // 尝试使用 File System Access API 选择目录
+  if (window.showDirectoryPicker) {
+    try {
+      const dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+      for (let i = 0; i < cells.length; i++) {
+        const blob = await canvasToBlob(cells[i]);
+        const fileHandle = await dirHandle.getFileHandle(`grid_${i + 1}.png`, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      }
+      showToast('9 张图片已保存到文件夹');
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      // fallback to sequential download
+    }
+  }
+
+  exportAll();
+}
+
+function canvasToBlob(canvas) {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+}
+</script>
+</body>
+</html>
