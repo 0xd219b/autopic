@@ -20,6 +20,13 @@
 - 支持手动调节强度和重新去水印
 - 导入图片时默认自动去除水印
 
+**水印原理与资源同步**
+Gemini 水印可近似为白色 Logo 的 Alpha 叠加，满足 `watermarked = α * logo + (1 - α) * original`。去除过程先用背景捕获图计算 alpha map，再通过 NCC + Sobel 在右下区域匹配水印位置/尺寸，最后按反向公式解出原图像素，并配合可选的增益校准、模板对齐与子像素精修提升效果。
+
+资源注意事项：
+- `index.html` 中的 `BG_48_SRC` / `BG_96_SRC` 必须与 `gemini-watermark-remover` 的 `src/assets/bg_48.png` / `src/assets/bg_96.png` 内容一致，否则 alpha map 偏差会导致检测失败或去不干净。
+- 如需更新水印模板，建议直接从源库图片重新生成 base64 并替换，避免手工编辑出错。
+
 ### 网格切分
 - 自定义目标尺寸（默认 1024×896）和块大小（默认 128px）
 - 自动将图片缩放并切分为网格块
@@ -69,6 +76,8 @@
 - 纯 HTML + CSS + JavaScript，无依赖
 - HTML5 Canvas API
 - 单文件部署，零构建
+- UI：[Space Grotesk](https://fonts.google.com/specimen/Space+Grotesk) + [Manrope](https://fonts.google.com/specimen/Manrope) 字体，[Remix Icon](https://remixicon.com/) 图标
+- 浅色主题，CSS 变量驱动设计系统，glassmorphism 风格
 
 ## License
 

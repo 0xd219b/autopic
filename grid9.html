@@ -4,133 +4,378 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>九宫格切图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/remixicon@4.3.0/fonts/remixicon.css" rel="stylesheet">
 <style>
+  :root {
+    --font-title: "Space Grotesk";
+    --font-body: "Manrope";
+    --bg-0: #f7f4ed;
+    --bg-1: #eef4f2;
+    --surface: rgba(255, 255, 255, 0.88);
+    --surface-strong: #ffffff;
+    --ink: #1b2321;
+    --muted: #65706f;
+    --accent: #1c9a8a;
+    --accent-2: #ff7a59;
+    --accent-3: #2f80ed;
+    --border: rgba(25, 35, 33, 0.12);
+    --shadow: 0 18px 40px rgba(14, 24, 21, 0.12);
+    --shadow-soft: 0 10px 20px rgba(14, 24, 21, 0.08);
+    --radius-lg: 18px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+  }
+
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; }
+  body {
+    font-family: var(--font-body), "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(180deg, var(--bg-0), var(--bg-1));
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: -10% -10% auto -10%;
+    height: 55vh;
+    background:
+      radial-gradient(680px 380px at 12% 12%, rgba(28, 154, 138, 0.22), transparent 60%),
+      radial-gradient(720px 420px at 92% 0%, rgba(255, 122, 89, 0.18), transparent 60%);
+    z-index: -2;
+  }
+  body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(900px 520px at 85% 85%, rgba(47, 128, 237, 0.12), transparent 60%);
+    z-index: -3;
+  }
 
   .toolbar {
-    display: flex; align-items: center; gap: 16px; padding: 12px 20px;
-    background: #16213e; border-bottom: 1px solid #0f3460; flex-wrap: wrap;
+    display: flex;
+    align-items: center;
+    gap: 14px 18px;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(10px);
+    flex-wrap: wrap;
+    position: relative;
+    overflow: hidden;
+    animation: floatIn 0.6s ease both;
   }
-  .toolbar label { font-size: 13px; color: #a0a0c0; }
-  .toolbar button {
-    padding: 6px 16px; border: none; border-radius: 4px; font-size: 13px;
-    cursor: pointer; transition: all 0.2s;
+  .toolbar::after {
+    content: "";
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, rgba(28,154,138,0.8), rgba(255,122,89,0.4), transparent);
+    opacity: 0.7;
   }
-  .btn-primary { background: #533483; color: white; }
-  .btn-primary:hover { background: #6a42a0; }
-  .btn-success { background: #1a936f; color: white; }
-  .btn-success:hover { background: #22b384; }
-  .btn-warning { background: #c84b31; color: white; }
-  .btn-warning:hover { background: #e05a3e; }
-  .btn-info { background: #0f3460; color: #a0d2db; border: 1px solid #533483; }
-  .btn-info:hover { background: #1a4a80; }
-  .btn-info.active { background: #533483; color: white; }
-  .sep { color: #533483; font-weight: bold; }
-  .info-text { font-size: 12px; color: #888; }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-right: 8px;
+  }
+  .brand-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #1c9a8a, #3bbf9b);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    box-shadow: 0 10px 20px rgba(28, 154, 138, 0.35);
+  }
+  .brand-title {
+    font-family: var(--font-title), "Noto Sans SC", sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .brand-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .toolbar-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .toolbar-link { margin-left: auto; }
 
-  .main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow: auto; }
+  label { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--surface-strong);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .status-pill::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(28, 154, 138, 0.15);
+  }
+
+  :is(.btn-primary, .btn-success, .btn-warning, .btn-info, .btn-ghost) {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    text-decoration: none;
+  }
+  :is(.btn-primary, .btn-success, .btn-warning, .btn-info, .btn-ghost) i { font-size: 16px; }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 10px 18px rgba(28, 154, 138, 0.25); }
+  .btn-success { background: #2e9c7f; color: #fff; box-shadow: 0 10px 18px rgba(46, 156, 127, 0.25); }
+  .btn-warning { background: var(--accent-2); color: #fff; box-shadow: 0 10px 18px rgba(255, 122, 89, 0.28); }
+  .btn-info { background: var(--surface-strong); color: var(--ink); border: 1px solid var(--border); }
+  .btn-info:hover { border-color: rgba(28, 154, 138, 0.5); color: var(--accent); }
+  .btn-info.active { background: var(--accent); color: #fff; border-color: transparent; }
+  .btn-ghost { background: transparent; color: var(--ink); border: 1px dashed var(--border); }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    gap: 16px;
+  }
 
   .upload-area {
-    border: 2px dashed #533483; border-radius: 8px; padding: 60px 40px;
-    text-align: center; cursor: pointer; transition: border-color 0.2s;
+    border: 2px dashed rgba(28, 154, 138, 0.4);
+    border-radius: var(--radius-md);
+    padding: 56px 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    background: linear-gradient(135deg, rgba(28, 154, 138, 0.12), rgba(255, 122, 89, 0.08));
+    width: min(620px, 92%);
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
-  .upload-area:hover { border-color: #a0d2db; }
-  .upload-area .icon { font-size: 48px; color: #533483; }
-  .upload-area p { color: #a0a0c0; margin-top: 8px; font-size: 14px; }
+  .upload-area:hover {
+    border-color: rgba(28, 154, 138, 0.8);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-soft);
+  }
+  .upload-area .icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: rgba(28, 154, 138, 0.15);
+    color: var(--accent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+  .upload-area p { color: var(--muted); margin-top: 0; font-size: 14px; }
 
-  .workspace { display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .workspace { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .panel-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.02em;
+  }
 
-  .source-section, .result-section { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-  .section-title { font-size: 14px; font-weight: 600; color: #a0d2db; }
+  .source-section, .result-section { align-items: center; }
 
   .source-wrap {
-    position: relative; border: 2px solid #533483; border-radius: 4px;
-    background: repeating-conic-gradient(#2a2a4a 0% 25%, #1a1a2e 0% 50%) 50% / 16px 16px;
-    overflow: hidden; cursor: crosshair;
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background:
+      linear-gradient(45deg, rgba(15, 28, 24, 0.08) 25%, transparent 25%) 0 0 / 16px 16px,
+      linear-gradient(-45deg, rgba(15, 28, 24, 0.08) 25%, transparent 25%) 0 0 / 16px 16px,
+      linear-gradient(45deg, transparent 75%, rgba(15, 28, 24, 0.08) 75%) 0 0 / 16px 16px,
+      linear-gradient(-45deg, transparent 75%, rgba(15, 28, 24, 0.08) 75%) 0 0 / 16px 16px;
+    background-color: #f5f7f6;
+    overflow: hidden;
+    cursor: crosshair;
   }
   .source-wrap canvas { display: block; }
-  /* 裁切框 */
   .crop-overlay {
-    position: absolute; border: 2px dashed #e94560; pointer-events: none;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.5);
+    position: absolute;
+    border: 2px dashed var(--accent-2);
+    pointer-events: none;
+    box-shadow: 0 0 0 9999px rgba(12, 18, 17, 0.35);
   }
 
   .grid-preview {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
-    background: #533483; border: 2px solid #533483; border-radius: 4px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: #d6e0dd;
+    border: 1px solid #d6e0dd;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 10px 24px rgba(20, 30, 28, 0.08);
   }
   .grid-preview canvas {
-    display: block; image-rendering: pixelated; cursor: pointer;
+    display: block;
+    image-rendering: pixelated;
+    cursor: pointer;
     transition: outline 0.15s;
   }
-  .grid-preview canvas:hover { outline: 2px solid #a0d2db; outline-offset: -2px; }
+  .grid-preview canvas:hover { outline: 2px solid rgba(28, 154, 138, 0.8); outline-offset: -2px; }
 
   .order-hint {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; margin-top: 4px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin-top: 4px;
   }
   .order-hint span {
-    font-size: 11px; color: #a0a0c0; text-align: center; width: 40px;
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    width: 40px;
   }
 
   #fileInput { display: none; }
 
   .toast {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: #533483; color: white; padding: 10px 24px; border-radius: 6px;
-    font-size: 14px; z-index: 999; opacity: 0; transition: opacity 0.3s;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 999px;
+    font-size: 13px;
+    z-index: 999;
+    opacity: 0;
+    transition: opacity 0.3s;
     pointer-events: none;
+    box-shadow: var(--shadow-soft);
   }
   .toast.show { opacity: 1; }
 
   .size-options { display: flex; gap: 8px; align-items: center; }
-  .size-options button.active { background: #533483; color: white; }
+  .size-options button.active { background: var(--accent); color: #fff; border-color: transparent; }
 
   .crop-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .crop-controls input[type="number"] {
-    width: 60px; padding: 4px 6px; background: #0f3460; border: 1px solid #533483;
-    color: #e0e0e0; border-radius: 4px; font-size: 12px;
+    width: 70px;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid var(--border);
+    color: var(--ink);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+
+  @keyframes floatIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @media (max-width: 1100px) {
+    .toolbar-link { margin-left: 0; width: 100%; justify-content: flex-start; }
+  }
+  @media (max-width: 720px) {
+    .toolbar { padding: 12px; }
+    .brand { width: 100%; }
+    .toolbar-group { width: 100%; }
   }
 </style>
 </head>
 <body>
 
 <div class="toolbar">
-  <button class="btn-primary" onclick="document.getElementById('fileInput').click()">上传图片</button>
-  <input type="file" id="fileInput" accept="image/*">
-  <span class="sep">|</span>
-  <label>输出尺寸:</label>
-  <div class="size-options" id="sizeOptions">
-    <button class="btn-info" onclick="setOutputSize(1080)" data-size="1080">1080</button>
-    <button class="btn-info" onclick="setOutputSize(1024)" data-size="1024">1024</button>
-    <button class="btn-info active" onclick="setOutputSize(0)" data-size="0">自动</button>
+  <div class="brand">
+    <div class="brand-icon"><i class="ri-grid-line"></i></div>
+    <div class="brand-text">
+      <div class="brand-title">九宫格切图</div>
+      <div class="brand-subtitle">1:1 裁切 · 预览 · 批量导出</div>
+    </div>
   </div>
-  <span class="sep">|</span>
-  <button class="btn-success" onclick="exportAll()">全部导出</button>
-  <button class="btn-info" onclick="exportZip()">打包下载</button>
-  <span class="sep">|</span>
-  <span class="info-text" id="infoText">上传一张图片开始切图</span>
-  <span style="flex:1;"></span>
-  <a href="index.html" class="btn-info" style="text-decoration:none; display:inline-block;">图片调整工具</a>
+
+  <div class="toolbar-group">
+    <button class="btn-primary" onclick="document.getElementById('fileInput').click()">
+      <i class="ri-upload-cloud-2-line"></i><span>上传图片</span>
+    </button>
+    <input type="file" id="fileInput" accept="image/*">
+    <div class="status-pill" id="infoText">上传一张图片开始切图</div>
+  </div>
+
+  <div class="toolbar-group">
+    <label>输出尺寸</label>
+    <div class="size-options" id="sizeOptions">
+      <button class="btn-info" onclick="setOutputSize(1080)" data-size="1080">1080</button>
+      <button class="btn-info" onclick="setOutputSize(1024)" data-size="1024">1024</button>
+      <button class="btn-info active" onclick="setOutputSize(0)" data-size="0">自动</button>
+    </div>
+  </div>
+
+  <div class="toolbar-group">
+    <button class="btn-success" onclick="exportAll()"><i class="ri-download-2-line"></i><span>全部导出</span></button>
+    <button class="btn-info" onclick="exportZip()"><i class="ri-folder-zip-line"></i><span>打包下载</span></button>
+  </div>
+
+  <div class="toolbar-group toolbar-link">
+    <a href="index.html" class="btn-info"><i class="ri-magic-line"></i><span>图片调整工具</span></a>
+  </div>
 </div>
 
 <div class="main" id="mainArea">
   <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
-    <div class="icon">&#x1F5BC;</div>
+    <div class="icon"><i class="ri-image-add-line"></i></div>
     <p>点击或拖拽上传图片</p>
-    <p style="font-size:12px; margin-top:4px;">支持 PNG / JPG / WebP</p>
-    <p style="font-size:12px; margin-top:4px; color:#a0d2db;">图片将被裁切为 1:1 正方形后切分为九宫格</p>
+    <p style="font-size:12px;">支持 PNG / JPG / WebP</p>
+    <p style="font-size:12px; color:var(--accent-3);">图片将被裁切为 1:1 正方形后切分为九宫格</p>
   </div>
 
   <div class="workspace" id="workspace" style="display:none;">
-    <div class="source-section">
+    <div class="panel-card source-section">
       <div class="section-title">原图（拖拽调整裁切区域）</div>
       <div class="crop-controls">
-        <label style="font-size:12px; color:#a0a0c0;">裁切偏移 X:</label>
+        <label>裁切偏移 X:</label>
         <input type="number" id="cropX" value="0" step="1" onchange="updateCropFromInput()">
-        <label style="font-size:12px; color:#a0a0c0;">Y:</label>
+        <label>Y:</label>
         <input type="number" id="cropY" value="0" step="1" onchange="updateCropFromInput()">
-        <button class="btn-info" onclick="centerCrop()">居中</button>
+        <button class="btn-info" onclick="centerCrop()"><i class="ri-focus-3-line"></i><span>居中</span></button>
       </div>
       <div class="source-wrap" id="sourceWrap">
         <canvas id="sourceCanvas"></canvas>
@@ -138,7 +383,7 @@
       </div>
     </div>
 
-    <div class="result-section">
+    <div class="panel-card result-section">
       <div class="section-title">九宫格预览（点击单独下载）</div>
       <div class="grid-preview" id="gridPreview"></div>
       <div class="order-hint">
